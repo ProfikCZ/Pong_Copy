@@ -98,17 +98,17 @@ public:
         player_hitbox = rectangle.getGlobalBounds();
     }
 
-    const sf::FloatRect get_hitbox()
+    sf::FloatRect get_hitbox() const
     {
         return player_hitbox;
     }
 
-    const sf::Vector2f get_position()
+    sf::Vector2f get_position() const
     {
         return rectangle.getPosition();
     }
 
-    const sf::Vector2f get_size()
+    sf::Vector2f get_size() const
     {
         return rectangle.getSize();
     }
@@ -162,12 +162,12 @@ public:
         vector_rotate(ball_velocity);
     }
 
-    const sf::Vector2f get_position()
+    sf::Vector2f get_position() const
     {
         return ball.getPosition();
     }
 
-    const sf::Vector2f get_size()
+    sf::Vector2f get_size() const
     {
         return ball.getSize();
     }
@@ -234,7 +234,7 @@ public:
     }
 };
 
-void game_state_handle(Ball &b,Player &p1, Player &p2, bool &game_running, int player_number)
+void game_state_handle(Ball &b, Player &p1, Player &p2, bool &game_running, int player_number)
 {
     b.reset();
     game_running = false;
@@ -242,7 +242,7 @@ void game_state_handle(Ball &b,Player &p1, Player &p2, bool &game_running, int p
         p1.add_point();
     else
         p2.add_point();
-    
+
     p1.reset();
     p2.reset();
 }
@@ -340,7 +340,7 @@ int main()
 
             if ((ret = ball.move_ball(dt, p1, p2)) != 0)
             {
-                game_state_handle(ball,p1, p2, game_running, ret);
+                game_state_handle(ball, p1, p2, game_running, ret);
             }
         }
 
