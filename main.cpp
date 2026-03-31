@@ -13,10 +13,37 @@ enum
 float window_width = 1920, window_height = 1080; // note: aspect ratio is 16:9 and variables not adjusting for a different one
 float player_height = window_height * 0.15f, player_width = player_height / 8;
 
-void vector_rotate(/*vector to rotate, random or not (implicit -1 input else use explicit input)*/)
+void vector_rotate(sf::Vector2f &v, float angle = -1) // vector to rotate, random or not (implicit -1 input else use explicit input)
 {
     // using sf::Transform + array of posible angle values + random int generator
     // transform ball velocity vector
+    sf::Transform rotation;
+
+    std::vector<float> deg = {0.f, 10.f, 20.f, 30.f, 40.f, 50.f, 60.f};
+    float chosen_degrees;
+
+    if (angle != -1)
+    {
+        rotation.rotate(angle);
+        v = rotation.transformPoint(v);
+
+        return;
+    }
+    else
+    {
+        int random = rand() % 7;
+        chosen_degrees = deg.at(random);
+
+        if (rand() % 2)
+            chosen_degrees *= -1;
+
+        if (rand() % 2)
+            chosen_degrees += 180.f;
+
+        rotation.rotate(chosen_degrees);
+        v = rotation.transformPoint(v);
+        return;
+    }
 }
 
 class Player
@@ -26,9 +53,16 @@ class Player
     std::vector<sf::FloatRect> bounds;
     sf::FloatRect player_hitbox;
 
+    sf::Vector2f player_origin;
+
+    int points;
+
 public:
     Player(sf::Vector2f pos, sf::Vector2f size, sf::Vector2f velocity, std::vector<sf::RectangleShape> edge)
     {
+        points = 0;
+        player_origin = pos;
+
         rectangle.setSize(size);
         rectangle.setPosition(pos);
         player_velocity = velocity;
@@ -64,16 +98,42 @@ public:
         player_hitbox = rectangle.getGlobalBounds();
     }
 
-    sf::FloatRect get_hitbox()
+    const sf::FloatRect get_hitbox()
     {
         return player_hitbox;
+    }
+
+    const sf::Vector2f get_position()
+    {
+        return rectangle.getPosition();
+    }
+
+    const sf::Vector2f get_size()
+    {
+        return rectangle.getSize();
+    }
+
+    void add_point()
+    {
+        points++;
+    }
+
+    void reset()
+    {
+        rectangle.setPosition(player_origin);
     }
 };
 
 class Ball
 {
     sf::RectangleShape ball;
+    sf::Vector2f ball_origin;
+
     sf::Vector2f ball_velocity;
+    sf::Vector2f ball_base_velocity;
+
+    sf::Vector2f p1_normal_vector, p2_normal_vector;
+
     std::vector<sf::FloatRect> bounds;
 
 public:
@@ -81,13 +141,56 @@ public:
     {
         ball.setSize(ball_size);
         ball.setPosition(pos);
-        ball_velocity = velocity;
+        ball_origin = pos;
+        ball_velocity = ball_base_velocity = velocity;
+        p1_normal_vector = ball_base_velocity, p2_normal_vector = -ball_base_velocity;
+
         for (const auto &border : edge)
         {
             bounds.push_back(border.getGlobalBounds());
         }
     }
-    void move_ball(float dt, Player &p1, Player &p2)
+    void draw_ball(sf::RenderWindow &window)
+    {
+        window.draw(ball);
+    }
+
+    void reset()
+    {
+        ball.setPosition(ball_origin);
+        ball_velocity = ball_base_velocity;
+        vector_rotate(ball_velocity);
+    }
+
+    const sf::Vector2f get_position()
+    {
+        return ball.getPosition();
+    }
+
+    const sf::Vector2f get_size()
+    {
+        return ball.getSize();
+    }
+
+    float relative_position(Player &w)
+    {
+        sf::Vector2f ball_center = ball.getPosition();
+        ball_center.y += ball.getSize().y / 2;
+
+        sf::Vector2f wall_center = w.get_position();
+        wall_center.y += w.get_size().y / 2;
+
+        float center_distance = ball_center.y - wall_center.y;
+
+        float coef = center_distance / (w.get_size().y / 2);
+
+        if (w.get_position().x > window_width / 2)
+            return -coef;
+        else
+            return coef;
+    }
+
+    int move_ball(float dt, Player &p1, Player &p2)
     {
         sf::FloatRect next = ball.getGlobalBounds();
         next.top += ball_velocity.y * dt;
@@ -100,32 +203,49 @@ public:
         }
         else if (next.intersects(p1.get_hitbox()))
         {
-            ball_velocity.x *= -1;
+            float angle_ratio = relative_position(p1);
+
+            ball_velocity = p1_normal_vector;
+            vector_rotate(ball_velocity, 60.f * angle_ratio);
+
             ball.setPosition(sf::Vector2f(player_width, ball.getPosition().y));
         }
         else if (next.intersects(p2.get_hitbox()))
         {
-            ball_velocity.x *= -1;
+            float angle_ratio = relative_position(p2);
+
+            ball_velocity = p2_normal_vector;
+            vector_rotate(ball_velocity, 60.f * angle_ratio);
+
             ball.setPosition(sf::Vector2f(window_width - 2 * player_width, ball.getPosition().y));
         }
         else if (next.intersects(bounds[LEFT]))
         {
-            // Win for right player
-            // ball.reset
+            // Win for right player (p2)
+            return 2;
         }
         else if (next.intersects(bounds[RIGHT]))
         {
-            // Win for left player
-            // ball.reset
+            // Win for left player (p1)
+            return 1;
         }
         ball.move(ball_velocity * dt);
-    }
-
-    void draw_ball(sf::RenderWindow &window)
-    {
-        window.draw(ball);
+        return 0;
     }
 };
+
+void game_state_handle(Ball &b,Player &p1, Player &p2, bool &game_running, int player_number)
+{
+    b.reset();
+    game_running = false;
+    if (player_number == 1)
+        p1.add_point();
+    else
+        p2.add_point();
+    
+    p1.reset();
+    p2.reset();
+}
 
 void make_border(std::vector<sf::RectangleShape> &arr)
 {
@@ -142,7 +262,7 @@ void make_border(std::vector<sf::RectangleShape> &arr)
     top.setPosition(sf::Vector2f(0, -10));
     bot.setPosition(sf::Vector2f(0, window_height + 10));
     left.setPosition(sf::Vector2f(-10, 0));
-    right.setPosition(sf::Vector2f(0, window_width + 10));
+    right.setPosition(sf::Vector2f(window_width + 10, 0));
 
     arr.push_back(top);
     arr.push_back(bot);
@@ -175,37 +295,55 @@ int main()
 
     sf::Clock clock;
 
+    bool game_running = false;
+
+    int ret = 0;
+
     while (window.isOpen())
     {
-        float dt = clock.restart().asSeconds();
-
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed)
                 window.close();
         }
 
+        if (!game_running && sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+        {
+            clock.restart();
+            ball.reset();
+            game_running = true;
+        }
+
+        float dt = clock.restart().asSeconds();
+
         window.clear(sf::Color::Black);
 
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+        if (game_running)
         {
-            p1.move_up(dt);
-        }
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-        {
-            p1.move_down(dt);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+            {
+                p1.move_up(dt);
+            }
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+            {
+                p1.move_down(dt);
+            }
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+            {
+                p2.move_up(dt);
+            }
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+            {
+                p2.move_down(dt);
+            }
+
+            if ((ret = ball.move_ball(dt, p1, p2)) != 0)
+            {
+                game_state_handle(ball,p1, p2, game_running, ret);
+            }
         }
 
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-        {
-            p2.move_up(dt);
-        }
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-        {
-            p2.move_down(dt);
-        }
-
-        ball.move_ball(dt, p1, p2);
         ball.draw_ball(window);
 
         p1.draw_player(window);
