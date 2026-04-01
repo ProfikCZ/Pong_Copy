@@ -31,13 +31,13 @@ void vector_rotate(sf::Vector2f &v, float angle = -1) // vector to rotate, rando
     }
     else
     {
-        int random = rand() % 7;
+        int random = rand() % 7; // one of the 7 predefined values
         chosen_degrees = deg.at(random);
 
-        if (rand() % 2)
+        if (rand() % 2) // clockwise or counter clockwise rotation
             chosen_degrees *= -1;
 
-        if (rand() % 2)
+        if (rand() % 2) // reverse direction or not
             chosen_degrees += 180.f;
 
         rotation.rotate(chosen_degrees);
@@ -51,7 +51,6 @@ class Player
     sf::RectangleShape rectangle;
     sf::Vector2f player_velocity;
     std::vector<sf::FloatRect> bounds;
-    sf::FloatRect player_hitbox;
 
     sf::Vector2f player_origin;
 
@@ -70,7 +69,6 @@ public:
         {
             bounds.push_back(border.getGlobalBounds());
         }
-        player_hitbox = rectangle.getGlobalBounds();
     }
 
     void draw_player(sf::RenderWindow &window)
@@ -85,7 +83,6 @@ public:
 
         if (!next.intersects(bounds[TOP]))
             rectangle.move(0.f, -player_velocity.y * dt);
-        player_hitbox = rectangle.getGlobalBounds();
     }
 
     void move_down(float dt)
@@ -95,12 +92,11 @@ public:
 
         if (!next.intersects(bounds[BOT]))
             rectangle.move(0.f, player_velocity.y * dt);
-        player_hitbox = rectangle.getGlobalBounds();
     }
 
     sf::FloatRect get_hitbox() const
     {
-        return player_hitbox;
+        return rectangle.getGlobalBounds();
     }
 
     sf::Vector2f get_position() const
@@ -205,6 +201,9 @@ public:
         {
             float angle_ratio = relative_position(p1);
 
+            p1_normal_vector *= 1.05f;
+            p2_normal_vector *= 1.05f;
+
             ball_velocity = p1_normal_vector;
             vector_rotate(ball_velocity, 60.f * angle_ratio);
 
@@ -214,6 +213,9 @@ public:
         {
             float angle_ratio = relative_position(p2);
 
+            p1_normal_vector *= 1.05f;
+            p2_normal_vector *= 1.05f;
+
             ball_velocity = p2_normal_vector;
             vector_rotate(ball_velocity, 60.f * angle_ratio);
 
@@ -221,12 +223,18 @@ public:
         }
         else if (next.intersects(bounds[LEFT]))
         {
-            // Win for right player (p2)
+            // Win for left player (p2)
+            p1_normal_vector = ball_base_velocity;
+            p2_normal_vector = -ball_base_velocity;
+
             return 2;
         }
         else if (next.intersects(bounds[RIGHT]))
         {
             // Win for left player (p1)
+            p1_normal_vector = ball_base_velocity;
+            p2_normal_vector = -ball_base_velocity;
+
             return 1;
         }
         ball.move(ball_velocity * dt);
@@ -279,7 +287,7 @@ int main()
     sf::Vector2f player1_pos(0, (window_height - player_height) / 2);
     sf::Vector2f player2_pos(window_width - player_width, (window_height - player_height) / 2);
 
-    sf::Vector2f ball_size(player_width, player_width), ball_velocity(window_width / 2, 0.f), ball_pos((window_width - player_width) / 2, (window_height - player_width) / 2);
+    sf::Vector2f ball_size(player_width, player_width), ball_velocity(window_width / 2.f, 0.f), ball_pos((window_width - player_width) / 2, (window_height - player_width) / 2);
 
     sf::RenderWindow window(sf::VideoMode(window_width, window_height), "PONG");
 
