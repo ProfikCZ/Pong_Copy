@@ -10,9 +10,11 @@ enum
     RIGHT = 3
 };
 
+// wrap these yucky global variables into a class
 float window_width = 1920, window_height = 1080; // note: aspect ratio is 16:9 and variables not adjusting for a different one
 float player_height = window_height * 0.15f, player_width = player_height / 8;
 
+// possibly split into two functions for better readability
 void vector_rotate(sf::Vector2f &v, float angle = -1) // vector to rotate, random or not (implicit -1 input else use explicit input)
 {
     // using sf::Transform + array of posible angle values + random int generator
@@ -201,8 +203,8 @@ public:
         {
             float angle_ratio = relative_position(p1);
 
-            p1_normal_vector *= 1.05f;
-            p2_normal_vector *= 1.05f;
+            p1_normal_vector *= 1.05f; // wrap these coeficients somewhere for later
+            p2_normal_vector *= 1.05f; // when main menu screen is included with difficulty options
 
             ball_velocity = p1_normal_vector;
             vector_rotate(ball_velocity, 60.f * angle_ratio);
@@ -223,7 +225,7 @@ public:
         }
         else if (next.intersects(bounds[LEFT]))
         {
-            // Win for left player (p2)
+            // Win for right player (p2)
             p1_normal_vector = ball_base_velocity;
             p2_normal_vector = -ball_base_velocity;
 
@@ -280,6 +282,8 @@ void make_border(std::vector<sf::RectangleShape> &arr)
 
 int main()
 {
+    //=================================================================================================
+    // all of this variable setup to be wrapped up into a function
 
     sf::Vector2f player_velocity(0, window_width / 2);
 
@@ -298,6 +302,9 @@ int main()
     Player p2(player2_pos, player_size, player_velocity, outer_edge);
 
     Ball ball(ball_pos, ball_size, ball_velocity, outer_edge);
+
+    // possibly all the way here
+    //=================================================================================================
 
     sf::Event event;
 
